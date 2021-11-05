@@ -42,6 +42,10 @@ input {
 	text-align: center;
 }
 
+input::-moz-placeholder {
+	font-size: 12px;
+}
+
 button {
 	font-size: 64px;
 }
@@ -291,6 +295,54 @@ function solve(p) {
 				}
 			});
 		});
+		
+		// For every group, see if there is a single row or column that must contain
+		// a possible value. If so, remove that value as a possibility from all other
+		// cells in that row or column.
+		p.getGroups().forEach(function (g) {
+			let m = getMissingValues(g);
+			m.forEach(function (value) {
+				let rowNums = new Set();
+				let colNums = new Set();
+				let hp = havePossible(g, value);
+
+				hp.forEach(function (cell) {
+					rowNums.add(cell.row);
+					colNums.add(cell.col);
+				});
+
+				// Arrays are handier to deal w/ at this point
+				rowNums = Array.from(rowNums);
+				colNums = Array.from(colNums);
+				
+				if (rowNums.length === 1 && colNums.length === 1) {
+					setVal(hp[0], value);
+					return;
+				}
+				
+				// Remove from other cells in the row, in other groups
+				if (rowNums.length == 1) {
+					let row = p.getRow(rowNums[0]);
+					row.filter(c => hp.indexOf(c) === -1).forEach(function (c) {
+						if (c.possible[value] === true) {
+							c.possible[value] = false;
+							numChanged++;
+						}
+					});
+				}
+				
+				// Same for columns
+				if (colNums.length == 1) {
+					let col = p.getColumn(colNums[0]);
+					col.filter(c => hp.indexOf(c) === -1).forEach(function (c) {
+						if (c.possible[value] === true) {
+							c.possible[value] = false;
+							numChanged++;
+						}
+					});
+				}
+			});
+		});
 
 		return numChanged;
 	};
@@ -298,7 +350,7 @@ function solve(p) {
 	do {
 		numLoops++;
 		console.log('Loop: ' + numLoops);
-	} while (mainLoop() > 0);
+	} while (mainLoop() > 0);	
 }
 
 //
@@ -324,10 +376,14 @@ function go() {
 	
 	// Set values of inputs
 	cellNum = 0;	
+	let cells = p.getCells();
 	document.querySelectorAll('input').forEach(function (inp) {
-		let value = p.getCells()[cellNum].value;
+		let cell = cells[cellNum];
+		let value = cell.value;
 		if (value !== null) {
 			inp.value = value;
+		} else {
+			inp.placeholder = cell.possible.map(function (v,i) { return [v,i]; }).filter(x => x[0] === true).map(x => x[1]).join("");
 		}
 		cellNum++;
 	});
