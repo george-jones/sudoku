@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Sudoku Partial Solver</title>
+	<meta charset="utf-8" />
+	<style>
+html {
+	background-color: #003060;
+	color: #aaa;
+}
+
+#grid > div input {
+	background-color: #000;
+}
+
+#grid > div.a input:nth-of-type(4),
+#grid > div.a input:nth-of-type(5),
+#grid > div.a input:nth-of-type(6)
+{
+	background-color: #444;
+}
+
+#grid > div.b input {
+	background-color: #444;
+}
+
+#grid > div.b input:nth-of-type(4),
+#grid > div.b input:nth-of-type(5),
+#grid > div.b input:nth-of-type(6)
+{
+	background-color: #000;
+}
+
+input {
+	background-color: #002040;
+	border: 1px solid #4070b0;
+	font-size: 64px;
+	width: 1em;
+	height: 1em;
+	color: #eee;
+	margin: 2px;
+	text-align: center;
+}
+
+button {
+	font-size: 64px;
+}
+	</style>
+</head>
+<body>
+	<div id="grid">
+		<div class="a"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
+		<div class="a"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
+		<div class="a"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
+		<div class="b"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
+		<div class="b"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
+		<div class="b"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
+		<div class="a"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
+		<div class="a"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
+		<div class="a"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
+	</div>
+	<button type="button" onclick="go()">Go</button>
+	<button type="button" onclick="clearInputs()">Clear</button>
+<script>
+
+//
+// Logicless game state objects
+//
+
+function Puzzle(initialValues) {
+	let o = { };
+	let cells = [ ];
+	let rows = [ ];
+	let columns = [ ];
+	let groups = [ ];
+	
+	(function setup() {
+		for (let i=0; i < initialValues.length; i++) {
+			let initialRow = initialValues[i];
+			let row = [ ];
+			
+			rows.push(row);
+			
+			for (let j=0; j < initialRow.length; j++) {
+				let column;
+				let group;
+				let groupNum;
+
+				if (i === 0) {
+					column = [ ];
+					columns.push(column);
+				} else {
+					column = columns[j];
+				}
+				
+				groupNum = 3 * Math.floor(i / 3) + Math.floor(j / 3);
+				group = groups[groupNum];
+				if (!group) {
+					group = [ ];
+					groups[groupNum] = group;
+				}
+				
+				let c = Cell(i, j, groupNum);
+				
+				if (initialRow[j] !== null) {
+					c.value = initialRow[j];
+				}
+				
+				row.push(c);
+				column.push(c);
+				group.push(c);
+				cells.push(c);
+			}
+		}
+	})();
+	
+	// All cells
+	o.cells = cells;
+	
+	// Get array of Cell objects in a given column 0-8
+	o.getColumn = function (colNum) {
+		return [...columns[colNum]];
+	}
+
+	// Get array of Cell objects in a given group 0-8
+	o.getRow = function (rowNum) {
+		return [...rows[rowNum]];
+	}
+	
+	// Get array of Cell objects in a given group 0-8
+	o.getGroup = function (groupNum) {
+		return [...groups[groupNum]];
+	}
+	
+	// Return an array of cells related to the given cell, meaning,
+	// every cell in the same row, column, or group, optionally excluding the
+	// cell itself.
+	o.getRelatedCells = function (cell, exclude_self) {
+		let related = Set();
+
+		if (!exclude_self) {
+			related.add(cell);
+		}
+
+		rows[cell.row].forEach(function (c2) {
+			if (c2 !== cell) {
+				related.add(c2);
+			}
+		});
+		
+		columns[cell.col].forEach(function (c2) {
+			if (c2 !== cell) {
+				related.add(c2);
+			}
+		});
+		
+		groups[cell.group].forEach(function (c2) {
+			if (c2 !== cell) {
+				related.add(c2);
+			}
+		});
+	
+		return Array.from(related);
+	}
+	
+	return o;
+}
+
+function Cell(row, col, group) {
+	let o = {
+		row,
+		col,
+		group,
+		value: null
+	};
+	
+	return o;
+}
+
+//
+// Solver
+//
+
+function solve(p) {
+	let numLoops = 0;
+
+	// Everything is possible, if you don't think about it too hard!
+	p.cells.forEach(function (cell) {
+		if (cell.value === null) {
+			// null for 0, true/false for 1-9. This will make it so we don't have to do -1 logic everywhere
+			cell.possible = [ null, true, true, true, true, true, true, true, true, true ];
+		}
+	});
+	
+	let mainLoop = function () {
+		let numChanged = 0;
+
+		// For each cell with a value, eliminate those as possibilities from its row, group, column
+		
+
+		return numChanged;
+	};
+	
+	do {
+		numLoops++;
+		console.log('Loop: ' + numLoops);
+	} while (mainLoop() > 0);
+}
+
+//
+// UI
+//
+
+function go() {
+	let d = [ [], [], [], [], [], [], [], [], [] ];
+	let cellNum = 0;
+	
+	document.querySelectorAll('input').forEach(function (inp) {
+		let rowNum = Math.floor(cellNum / 9);
+		if (inp.value.length > 0) {
+			d[rowNum].push(parseInt(inp.value, 10));
+		} else {
+			d[rowNum].push(null);
+		}
+		cellNum++;
+	});
+	
+	let p = Puzzle(d);
+	solve(p);
+	
+	// Set values of inputs
+	cellNum = 0;	
+	document.querySelectorAll('input').forEach(function (inp) {
+		let value = p.cells[cellNum].value;
+		if (value !== null) {
+			inp.value = value;
+		}
+		cellNum++;
+	});
+}
+
+function clearInputs() {
+	document.querySelectorAll('input').forEach(function (inp) {
+		inp.value = '';
+	});
+}
+</script>
+</body>
+</html>
