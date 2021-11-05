@@ -1,0 +1,2 @@
+# sudoku
+Partial sudoke solver
