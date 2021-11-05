@@ -49,15 +49,15 @@ button {
 </head>
 <body>
 	<div id="grid">
-		<div class="a"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
-		<div class="a"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
-		<div class="a"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
-		<div class="b"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
-		<div class="b"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
-		<div class="b"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
-		<div class="a"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
-		<div class="a"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
-		<div class="a"><input /><input /><input /><input /><input /><input /><input /><input /><input /></div>
+		<div class="a"><input value="6"/><input value="2"/><input /><input value="9"/><input /><input /><input /><input /><input /></div>
+		<div class="a"><input /><input /><input value="9"/><input /><input /><input /><input /><input value="5"/><input value="2"/></div>
+		<div class="a"><input /><input /><input /><input value="7"/><input /><input value="1"/><input value="9"/><input /><input /></div>
+		<div class="b"><input /><input /><input /><input value="6"/><input /><input /><input /><input value="1"/><input /></div>
+		<div class="b"><input value="4"/><input /><input value="6"/><input /><input value="1"/><input /><input /><input value="7"/><input /></div>
+		<div class="b"><input /><input /><input /><input /><input value="3"/><input value="2"/><input /><input /><input /></div>
+		<div class="a"><input value="1"/><input value="7"/><input /><input /><input /><input value="8"/><input /><input /><input /></div>
+		<div class="a"><input value="3"/><input /><input /><input /><input /><input /><input value="5"/><input /><input /></div>
+		<div class="a"><input /><input value="8"/><input /><input /><input /><input value="6"/><input /><input /><input value="1"/></div>
 	</div>
 	<button type="button" onclick="go()">Go</button>
 	<button type="button" onclick="clearInputs()">Clear</button>
@@ -114,8 +114,12 @@ function Puzzle(initialValues) {
 		}
 	})();
 	
-	// All cells
-	o.cells = cells;
+	// Basic getters. Maybe pointless currently, but if I decide to change the
+	// implementation later, the interface won't break.
+	o.getCells = function () { return [...cells]; };
+	o.getRows = function () { return [...rows]; };
+	o.getColumns = function () { return [...columns]; };
+	o.getGroups = function () { return [...groups]; };
 	
 	// Get array of Cell objects in a given column 0-8
 	o.getColumn = function (colNum) {
@@ -136,7 +140,7 @@ function Puzzle(initialValues) {
 	// every cell in the same row, column, or group, optionally excluding the
 	// cell itself.
 	o.getRelatedCells = function (cell, exclude_self) {
-		let related = Set();
+		let related = new Set();
 
 		if (!exclude_self) {
 			related.add(cell);
@@ -184,19 +188,109 @@ function Cell(row, col, group) {
 function solve(p) {
 	let numLoops = 0;
 
-	// Everything is possible, if you don't think about it too hard!
-	p.cells.forEach(function (cell) {
-		if (cell.value === null) {
-			// null for 0, true/false for 1-9. This will make it so we don't have to do -1 logic everywhere
-			cell.possible = [ null, true, true, true, true, true, true, true, true, true ];
+	// Make initial arrays of possible values associated with each cell
+	p.getCells().forEach(function (cell) {
+		let x = true;
+		
+		if (cell.value !== null) {
+			x = false;
+		}
+	
+		// null for 0, true/false for 1-9. This will make it so we don't have to do -1 logic everywhere	
+		cell.possible = [ null, x, x, x, x, x, x, x, x, x ];
+		
+		if (cell.value !== null) {
+			cell.possible[cell.value] = true;
 		}
 	});
+	
+	// Set value of cell
+	let setVal = function (cell, value) {
+		cell.value = value;
+		
+		// Remove all other possibles for this cell
+		for (let i=1; i < cell.possible.length; i++) {
+			if (i !== cell.value) {
+				cell.possible[i] = false;
+			}
+		}
+		
+		// Mark as not-possible (false) for each cell in its row, column, and group.
+		p.getRelatedCells(cell, true).forEach(function (c2) {
+			c2.possible[value] = false;
+		});
+
+	}
+	
+	// Get cells that don't have values
+	let getUnvalued = function (cells) {
+		return cells.filter(c => c.value === null);
+	}
+	
+	// Get array of values not present in these cells
+	let getMissingValues = function (cells) {
+		let s = new Set([ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]);
+		cells.filter(c => c.value !== null).forEach(function (cell) {
+			s.delete(cell.value);
+		});
+		return Array.from(s);
+	}
+	
+	// Get the cells in a list that have a possible value
+	let havePossible = function (cells, value) {
+		return cells.filter(c => c.possible[value] === true);
+	}
+	
+	// Get all the organizations (rows, columns, groups) as a single array of arrays
+	let everyOrg = function () {
+		return [...p.getRows(), ...p.getColumns(), ...p.getGroups()];
+	}
 	
 	let mainLoop = function () {
 		let numChanged = 0;
 
 		// For each cell with a value, eliminate those as possibilities from its row, group, column
+		p.getCells().forEach(function (cell) {
+			if (cell.value !== null) {
+				setVal(cell, cell.value);
+			}
+		});
 		
+		// For each unvalued cell, if it only has 1 possible, make that its value
+		getUnvalued(p.getCells()).forEach(function (cell) {
+			let possibleVal = null;
+			
+			for (let i=1; i < cell.possible.length; i++) {
+				if (cell.possible[i] === true) {
+					if (possibleVal === null) {
+						possibleVal = i;
+					} else {
+						possibleVal = null;
+						break;
+					}
+				}
+			}
+			
+			if (possibleVal !== null) {
+				setVal(cell, possibleVal);
+				numChanged++;
+			}
+		});
+		
+		// For every organzation (row, column, group), see if there is only one cell
+		// that can have a specific value, if so, assign it.
+		everyOrg().forEach(function (o) {
+			let uv = getUnvalued(o);
+			let m = getMissingValues(o);
+			
+			m.forEach(function (val) {
+				let hp = havePossible(uv, val);
+				if (hp.length === 1) {
+					setVal(hp[0], val);
+					numChanged++;
+				}
+			});
+		});
 
 		return numChanged;
 	};
@@ -231,7 +325,7 @@ function go() {
 	// Set values of inputs
 	cellNum = 0;	
 	document.querySelectorAll('input').forEach(function (inp) {
-		let value = p.cells[cellNum].value;
+		let value = p.getCells()[cellNum].value;
 		if (value !== null) {
 			inp.value = value;
 		}
