@@ -223,7 +223,18 @@ function solve(p) {
 		p.getRelatedCells(cell, true).forEach(function (c2) {
 			c2.possible[value] = false;
 		});
+	}
 
+	let getCellPossibles = function (cell) {
+		let pos = [ ];
+
+		for (let i=1; i < cell.possible.length; i++) {
+			if (cell.possible[i]) {
+				pos.push(i);
+			}
+		}
+
+		return pos;
 	}
 	
 	// Get cells that don't have values
@@ -342,6 +353,40 @@ function solve(p) {
 					});
 				}
 			});
+		});
+
+		// For every organzation see if there are any pairs that have only 2 possible values.
+		// If so, all other cells in the org cannot have those as possibilities.
+		everyOrg().forEach(function (o) {
+			let pairs = { };
+
+			o.forEach(function (cell) {
+				if (cell.value === null) {
+					let pos = getCellPossibles(cell);
+					if (pos.length === 2) {
+						let k = pos[0] + '|' + pos[1];
+						if (k in pairs) {
+							pairs[k].push(cell);
+						} else {
+							pairs[k] = [ cell ];
+						}
+					}
+				}
+			});
+
+			for (k in pairs) {
+				let theTwo = pairs[k];
+				if (theTwo.length === 2) {
+					let v1 = parseInt(k.charAt(0), 10);
+					let v2 = parseInt(k.charAt(2), 10);
+					o.forEach(function (cell) {
+						if (theTwo[0] !== cell && theTwo[1] !== cell) {
+							cell.possible[v1] = false;
+							cell.possible[v2] = false;
+						}
+					});
+				}
+			}
 		});
 
 		return numChanged;
